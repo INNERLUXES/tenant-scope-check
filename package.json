@@ -1,0 +1,49 @@
+{
+  "name": "tenant-scope-check",
+  "version": "1.0.0",
+  "description": "Reads the SQL of a multi-tenant SaaS application that keeps every tenant in one shared database (the pool model), from one file, a folder, or the migrations and the query files together, and reports what could leak data across tenants: a SELECT, UPDATE or DELETE on a tenant table with no condition on the tenant column, a tenant table joined on a key alone, an INSERT that does not set the tenant column, a tenant table with no tenant column and a tenant column that leads no index. Allow markers with a reason, text, JSON and GitHub annotation output, exit codes for a pipeline, no dependencies.",
+  "type": "module",
+  "main": "src/index.js",
+  "exports": {
+    ".": "./src/index.js"
+  },
+  "bin": {
+    "tenant-scope-check": "bin/tenant-scope-check.js"
+  },
+  "files": [
+    "bin",
+    "src",
+    "docs",
+    "examples",
+    "research",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "test": "node --test \"test/*.test.js\"",
+    "test:coverage": "node --test --experimental-test-coverage \"test/*.test.js\"",
+    "check": "node tools/check.mjs",
+    "example": "node tools/example.mjs"
+  },
+  "keywords": [
+    "multi-tenant",
+    "saas",
+    "sql",
+    "tenant-isolation",
+    "data-security",
+    "postgresql",
+    "linter",
+    "ci",
+    "cli"
+  ],
+  "author": "INNERLUXES <info@innerluxes.dev>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/INNERLUXES/tenant-scope-check.git"
+  },
+  "homepage": "https://innerluxes.dev/software-development/saas/consulting"
+}

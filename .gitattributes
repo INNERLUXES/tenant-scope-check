@@ -1,0 +1,7 @@
+* text=auto eol=lf
+# The example SQL is kept byte for byte as written, so a test can read it with LF and with CRLF line ends.
+examples/clean/** -text
+examples/leaky/** -text
+examples/config.json -text
+# The example output is kept as the tool writes it.
+examples/output/** -text
