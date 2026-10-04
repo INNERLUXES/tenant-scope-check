@@ -1,0 +1,64 @@
+tenant-scope-check: examples/leaky
+input: examples/leaky (5 files, 20 statements: 6 select, 2 insert, 2 update, 1 delete, 7 create table, 1 alter table, 1 create index)
+config: examples/config.json (Larkspur tenancy rules): tenant column tenant_id; every table is a tenant table but the global ones; global tables plans and tenants; files **/*.sql; minimum severity notice
+rules: unscoped-query (error); unscoped-join (warning); insert-without-tenant (error); missing-tenant-column (error); unindexed-tenant-column (warning); allow-without-reason (error); unused-allow (notice)
+findings: 13 (10 error, 2 warning, 1 notice); 1 allowed by a marker
+
+Findings (13)
+
+  ERROR    missing-tenant-column    examples/leaky/migrations/001_schema.sql:50
+           attachments is a tenant table (every table but the global ones is a tenant table), but its CREATE TABLE has no tenant_id column, so its rows belong to no tenant
+
+  ERROR    unscoped-query           examples/leaky/queries/customers.sql:3
+           the SELECT reads customers with no condition on customers.tenant_id, so it can return the rows of every tenant
+
+  ERROR    unscoped-query           examples/leaky/queries/customers.sql:8
+           the SELECT reads customers (c) with no condition on c.tenant_id, so it can return the rows of every tenant
+
+  ERROR    insert-without-tenant    examples/leaky/queries/customers.sql:13
+           the INSERT into customers names no columns, so the tool cannot see that it sets tenant_id; name the columns
+
+  ERROR    unscoped-query           examples/leaky/queries/invoices.sql:2
+           the SELECT reads invoices with no condition on invoices.tenant_id, so it can return the rows of every tenant
+
+  ERROR    unscoped-query           examples/leaky/queries/invoices.sql:14
+           a subquery reads customers with no condition on customers.tenant_id, so it can return the rows of every tenant
+
+  ERROR    unscoped-query           examples/leaky/queries/invoices.sql:17
+           the UPDATE changes invoices with no condition on invoices.tenant_id, so it can change the rows of every tenant
+
+  ERROR    insert-without-tenant    examples/leaky/queries/invoices.sql:20
+           the INSERT into invoice_lines gives no value for tenant_id, so the new row belongs to no tenant
+
+  ERROR    allow-without-reason     examples/leaky/queries/jobs.sql:8
+           the marker "tenant-scope: allow" gives no reason ("TBD" says nothing), so it allows nothing; write why the statement may cross tenants after it
+
+  ERROR    unscoped-query           examples/leaky/queries/jobs.sql:9
+           the DELETE deletes from payments with no condition on payments.tenant_id, so it can delete the rows of every tenant
+
+  WARNING  unindexed-tenant-column  examples/leaky/migrations/001_schema.sql:22
+           the tenant column invoices.tenant_id leads no index, primary key or unique constraint, so every query scoped by tenant reads the whole table
+
+  WARNING  unscoped-join            examples/leaky/queries/invoices.sql:7
+           the SELECT reads customers (c) through c.id = i.customer_id from invoices (i) only: no condition ties c.tenant_id to the tenant of invoices (i) or compares it to a value, so a key that points into another tenant brings that tenant's rows in
+
+  NOTICE   unused-allow             examples/leaky/queries/invoices.sql:24
+           the marker "tenant-scope: allow" allows nothing: its statement has no finding, so the marker can go
+
+Allowed by a marker (1)
+
+  ALLOWED  unscoped-query           examples/leaky/queries/jobs.sql:4
+           the SELECT reads invoices with no condition on invoices.tenant_id, so it can return the rows of every tenant
+           reason (line 2): the dunning job reads the overdue invoices of every tenant, under its own database role
+
+Read: examples/leaky
+
+  tenant tables  5: customers (tenant_id), invoices (tenant_id), invoice_lines (tenant_id), payments (tenant_id) and attachments (no tenant column)
+  global tables  2: plans and tenants
+  queries        11 checked: 6 select, 2 insert, 2 update, 1 delete, 0 truncate
+  schema         7 create table, 1 alter table, 1 create index, 0 drop table; 0 other statements not checked
+  allow markers  3: 2 with a reason, 1 without, 1 with nothing to allow
+
+This report reads the SQL text of the files it was given. It does not connect to a database or run a query, and it does not see SQL built at run time, queries made by an ORM, the body of a view or a function, or row-level security policies (docs/limits.md).
+
+RESULT: FAIL - 10 errors (and 2 warnings, 1 notice)

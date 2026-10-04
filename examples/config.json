@@ -1,0 +1,5 @@
+{
+  "name": "Larkspur tenancy rules",
+  "tenantTables": "all",
+  "globalTables": ["plans", "tenants"]
+}

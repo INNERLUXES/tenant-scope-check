@@ -1,0 +1,27 @@
+tenant-scope-check: examples/clean
+input: examples/clean (4 files, 20 statements: 6 select, 2 insert, 1 update, 1 delete, 7 create table, 1 alter table, 2 create index)
+config: examples/config.json (Larkspur tenancy rules): tenant column tenant_id; every table is a tenant table but the global ones; global tables plans and tenants; files **/*.sql; minimum severity notice
+rules: unscoped-query (error); unscoped-join (warning); insert-without-tenant (error); missing-tenant-column (error); unindexed-tenant-column (warning); allow-without-reason (error); unused-allow (notice)
+findings: 0; 1 allowed by a marker
+
+Findings (0)
+
+  none
+
+Allowed by a marker (1)
+
+  ALLOWED  unscoped-query           examples/clean/queries/changes.sql:17
+           the SELECT reads tasks with no condition on tasks.tenant_id, so it can return the rows of every tenant
+           reason (line 15): the billing job counts the tasks of every tenant, and runs only under the billing role
+
+Read: examples/clean
+
+  tenant tables  5: users (tenant_id), projects (tenant_id), tasks (tenant_id), comments (tenant_id) and audit_events (tenant_id)
+  global tables  2: plans and tenants
+  queries        10 checked: 6 select, 2 insert, 1 update, 1 delete, 0 truncate
+  schema         7 create table, 1 alter table, 2 create index, 0 drop table; 0 other statements not checked
+  allow markers  1: 1 with a reason, 0 without, 0 with nothing to allow
+
+This report reads the SQL text of the files it was given. It does not connect to a database or run a query, and it does not see SQL built at run time, queries made by an ORM, the body of a view or a function, or row-level security policies (docs/limits.md).
+
+RESULT: PASS - no error

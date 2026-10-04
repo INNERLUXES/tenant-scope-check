@@ -1,0 +1,34 @@
+{
+  "name": "built-in defaults",
+  "tenantColumns": [
+    "tenant_id"
+  ],
+  "tenantTables": "schema",
+  "globalTables": [],
+  "files": [
+    "**/*.sql"
+  ],
+  "exclude": [],
+  "emptyValues": [
+    "tbd",
+    "tba",
+    "todo",
+    "none",
+    "n a",
+    "na",
+    "unknown",
+    "reason",
+    "no reason",
+    "fixme"
+  ],
+  "rules": {
+    "unscopedQuery": "error",
+    "unscopedJoin": "warning",
+    "insertWithoutTenant": "error",
+    "missingTenantColumn": "error",
+    "unindexedTenantColumn": "warning",
+    "allowWithoutReason": "error",
+    "unusedAllow": "notice"
+  },
+  "minSeverity": "notice"
+}

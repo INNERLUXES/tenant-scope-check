@@ -1,0 +1,506 @@
+{
+  "tool": "tenant-scope-check",
+  "version": "1.0.0",
+  "input": {
+    "paths": [
+      "examples/leaky"
+    ],
+    "files": [
+      "examples/leaky/migrations/001_schema.sql",
+      "examples/leaky/migrations/002_indexes.sql",
+      "examples/leaky/queries/customers.sql",
+      "examples/leaky/queries/invoices.sql",
+      "examples/leaky/queries/jobs.sql"
+    ]
+  },
+  "config": {
+    "file": "examples/config.json",
+    "name": "Larkspur tenancy rules",
+    "tenantColumns": [
+      "tenant_id"
+    ],
+    "tenantTables": "all",
+    "globalTables": [
+      "plans",
+      "tenants"
+    ],
+    "files": [
+      "**/*.sql"
+    ],
+    "exclude": [],
+    "minSeverity": "notice",
+    "rules": [
+      {
+        "id": "unscoped-query",
+        "key": "unscopedQuery",
+        "level": "error",
+        "rule": "a SELECT, UPDATE, DELETE, TRUNCATE or TABLE that reads or changes a tenant table with no condition, joined by AND, that compares its tenant_id to a value or ties it to the tenant column of a table that has one, and that does not reach it through a key from such a table"
+      },
+      {
+        "id": "unscoped-join",
+        "key": "unscopedJoin",
+        "level": "warning",
+        "rule": "a tenant table joined to a scoped tenant table through a key such as c.id = o.customer_id, with no condition that ties its tenant_id to the other table or compares it to a value"
+      },
+      {
+        "id": "insert-without-tenant",
+        "key": "insertWithoutTenant",
+        "level": "error",
+        "rule": "an INSERT into a tenant table whose column list does not name its tenant_id, or that names no columns, unless that column has a DEFAULT in the schema read"
+      },
+      {
+        "id": "missing-tenant-column",
+        "key": "missingTenantColumn",
+        "level": "error",
+        "rule": "a table the configuration makes a tenant table whose CREATE TABLE, with the ALTER TABLE statements after it, has no tenant_id column"
+      },
+      {
+        "id": "unindexed-tenant-column",
+        "key": "unindexedTenantColumn",
+        "level": "warning",
+        "rule": "a tenant table created in the input whose tenant column is not the first column of any index, primary key or unique constraint, when the input holds a CREATE INDEX"
+      },
+      {
+        "id": "allow-without-reason",
+        "key": "allowWithoutReason",
+        "level": "error",
+        "rule": "a comment \"tenant-scope: allow\" with no reason after it, or with a reason that says nothing"
+      },
+      {
+        "id": "unused-allow",
+        "key": "unusedAllow",
+        "level": "notice",
+        "rule": "a comment \"tenant-scope: allow\" with a reason on a statement that has no finding, or after the last statement of a file"
+      }
+    ]
+  },
+  "summary": {
+    "counts": {
+      "files": 5,
+      "statements": 20,
+      "kinds": {
+        "select": 6,
+        "insert": 2,
+        "update": 2,
+        "delete": 1,
+        "truncate": 0,
+        "create table": 7,
+        "alter table": 1,
+        "create index": 1,
+        "drop table": 0,
+        "other": 0
+      },
+      "indexStatements": 1
+    },
+    "tenantTables": [
+      {
+        "name": "customers",
+        "columns": [
+          "tenant_id"
+        ],
+        "created": true,
+        "file": "examples/leaky/migrations/001_schema.sql",
+        "line": 15
+      },
+      {
+        "name": "invoices",
+        "columns": [
+          "tenant_id"
+        ],
+        "created": true,
+        "file": "examples/leaky/migrations/001_schema.sql",
+        "line": 22
+      },
+      {
+        "name": "invoice_lines",
+        "columns": [
+          "tenant_id"
+        ],
+        "created": true,
+        "file": "examples/leaky/migrations/001_schema.sql",
+        "line": 31
+      },
+      {
+        "name": "payments",
+        "columns": [
+          "tenant_id"
+        ],
+        "created": true,
+        "file": "examples/leaky/migrations/001_schema.sql",
+        "line": 40
+      },
+      {
+        "name": "attachments",
+        "columns": [],
+        "created": true,
+        "file": "examples/leaky/migrations/001_schema.sql",
+        "line": 50
+      }
+    ],
+    "tenantTableNames": [
+      "customers",
+      "invoices",
+      "invoice_lines",
+      "payments",
+      "attachments"
+    ],
+    "globalTables": [
+      "plans",
+      "tenants"
+    ],
+    "markers": {
+      "total": 3,
+      "withReason": 2,
+      "withoutReason": 1,
+      "unused": 1
+    }
+  },
+  "findings": [
+    {
+      "rule": "missing-tenant-column",
+      "level": "error",
+      "file": "examples/leaky/migrations/001_schema.sql",
+      "line": 50,
+      "column": null,
+      "at": "examples/leaky/migrations/001_schema.sql:50",
+      "found": "attachments is a tenant table (every table but the global ones is a tenant table), but its CREATE TABLE has no tenant_id column, so its rows belong to no tenant",
+      "basis": [
+        {
+          "text": "in a database shared by many tenants every table of tenant data carries a tenant identifier column so that one tenant can be picked out, and queries must never expose the data of more than one tenant",
+          "source": "Multitenant SaaS database tenancy patterns (Microsoft Learn, Azure SQL Database)",
+          "url": "https://learn.microsoft.com/en-us/azure/azure-sql/database/saas-tenancy-app-design-patterns"
+        },
+        {
+          "text": "in the pool model tenants share resources such as one database and its tables, which is the classic form of multi-tenancy, where the bridge model mixes pooled and siloed parts",
+          "source": "Silo, pool, and bridge models (AWS Well-Architected SaaS Lens)",
+          "url": "https://docs.aws.amazon.com/wellarchitected/latest/saas-lens/silo-pool-and-bridge-models.html"
+        }
+      ],
+      "own": "the rule can fire only when the configuration names the tenant tables or makes every table but the global ones a tenant table; with tenant tables taken from the schema, a table without the column is not a tenant table"
+    },
+    {
+      "rule": "unscoped-query",
+      "level": "error",
+      "file": "examples/leaky/queries/customers.sql",
+      "line": 3,
+      "column": null,
+      "at": "examples/leaky/queries/customers.sql:3",
+      "found": "the SELECT reads customers with no condition on customers.tenant_id, so it can return the rows of every tenant",
+      "basis": [
+        {
+          "text": "in a database shared by many tenants every table of tenant data carries a tenant identifier column so that one tenant can be picked out, and queries must never expose the data of more than one tenant",
+          "source": "Multitenant SaaS database tenancy patterns (Microsoft Learn, Azure SQL Database)",
+          "url": "https://learn.microsoft.com/en-us/azure/azure-sql/database/saas-tenancy-app-design-patterns"
+        },
+        {
+          "text": "permissions are checked on every request for the specific object asked for, since checking most requests is not enough",
+          "source": "Authorization Cheat Sheet (OWASP Cheat Sheet Series)",
+          "url": "https://cheatsheetseries.owasp.org/cheatsheets/Authorization_Cheat_Sheet.html"
+        },
+        {
+          "text": "authorization fails when one user can reach the record of another by changing the key that names the record",
+          "source": "CWE-639: Authorization Bypass Through User-Controlled Key (MITRE)",
+          "url": "https://cwe.mitre.org/data/definitions/639.html"
+        }
+      ],
+      "own": "a condition counts only when every row must pass it: a part under OR or NOT, or a condition in the ON of an outer join on the side the join keeps whole, does not count; a table reached through a key from a scoped tenant table is left to unscoped-join; TRUNCATE of a tenant table is reported here too"
+    },
+    {
+      "rule": "unscoped-query",
+      "level": "error",
+      "file": "examples/leaky/queries/customers.sql",
+      "line": 8,
+      "column": null,
+      "at": "examples/leaky/queries/customers.sql:8",
+      "found": "the SELECT reads customers (c) with no condition on c.tenant_id, so it can return the rows of every tenant",
+      "basis": [
+        {
+          "text": "in a database shared by many tenants every table of tenant data carries a tenant identifier column so that one tenant can be picked out, and queries must never expose the data of more than one tenant",
+          "source": "Multitenant SaaS database tenancy patterns (Microsoft Learn, Azure SQL Database)",
+          "url": "https://learn.microsoft.com/en-us/azure/azure-sql/database/saas-tenancy-app-design-patterns"
+        },
+        {
+          "text": "permissions are checked on every request for the specific object asked for, since checking most requests is not enough",
+          "source": "Authorization Cheat Sheet (OWASP Cheat Sheet Series)",
+          "url": "https://cheatsheetseries.owasp.org/cheatsheets/Authorization_Cheat_Sheet.html"
+        },
+        {
+          "text": "authorization fails when one user can reach the record of another by changing the key that names the record",
+          "source": "CWE-639: Authorization Bypass Through User-Controlled Key (MITRE)",
+          "url": "https://cwe.mitre.org/data/definitions/639.html"
+        }
+      ],
+      "own": "a condition counts only when every row must pass it: a part under OR or NOT, or a condition in the ON of an outer join on the side the join keeps whole, does not count; a table reached through a key from a scoped tenant table is left to unscoped-join; TRUNCATE of a tenant table is reported here too"
+    },
+    {
+      "rule": "insert-without-tenant",
+      "level": "error",
+      "file": "examples/leaky/queries/customers.sql",
+      "line": 13,
+      "column": null,
+      "at": "examples/leaky/queries/customers.sql:13",
+      "found": "the INSERT into customers names no columns, so the tool cannot see that it sets tenant_id; name the columns",
+      "basis": [
+        {
+          "text": "in a database shared by many tenants every table of tenant data carries a tenant identifier column so that one tenant can be picked out, and queries must never expose the data of more than one tenant",
+          "source": "Multitenant SaaS database tenancy patterns (Microsoft Learn, Azure SQL Database)",
+          "url": "https://learn.microsoft.com/en-us/azure/azure-sql/database/saas-tenancy-app-design-patterns"
+        },
+        {
+          "text": "a tenant identifier from the client only selects a tenant and is checked on the server against the tenant of the signed-in user, and each tenant table in a shared database is listed and guarded",
+          "source": "Multi-Tenant Application Security Cheat Sheet (OWASP Cheat Sheet Series)",
+          "url": "https://cheatsheetseries.owasp.org/cheatsheets/Multi_Tenant_Security_Cheat_Sheet.html"
+        }
+      ],
+      "own": "an INSERT that names no columns is reported, because the tool cannot see which value goes into the tenant column; a tenant column with a DEFAULT in its CREATE TABLE or a later ALTER TABLE may be left out"
+    },
+    {
+      "rule": "unscoped-query",
+      "level": "error",
+      "file": "examples/leaky/queries/invoices.sql",
+      "line": 2,
+      "column": null,
+      "at": "examples/leaky/queries/invoices.sql:2",
+      "found": "the SELECT reads invoices with no condition on invoices.tenant_id, so it can return the rows of every tenant",
+      "basis": [
+        {
+          "text": "in a database shared by many tenants every table of tenant data carries a tenant identifier column so that one tenant can be picked out, and queries must never expose the data of more than one tenant",
+          "source": "Multitenant SaaS database tenancy patterns (Microsoft Learn, Azure SQL Database)",
+          "url": "https://learn.microsoft.com/en-us/azure/azure-sql/database/saas-tenancy-app-design-patterns"
+        },
+        {
+          "text": "permissions are checked on every request for the specific object asked for, since checking most requests is not enough",
+          "source": "Authorization Cheat Sheet (OWASP Cheat Sheet Series)",
+          "url": "https://cheatsheetseries.owasp.org/cheatsheets/Authorization_Cheat_Sheet.html"
+        },
+        {
+          "text": "authorization fails when one user can reach the record of another by changing the key that names the record",
+          "source": "CWE-639: Authorization Bypass Through User-Controlled Key (MITRE)",
+          "url": "https://cwe.mitre.org/data/definitions/639.html"
+        }
+      ],
+      "own": "a condition counts only when every row must pass it: a part under OR or NOT, or a condition in the ON of an outer join on the side the join keeps whole, does not count; a table reached through a key from a scoped tenant table is left to unscoped-join; TRUNCATE of a tenant table is reported here too"
+    },
+    {
+      "rule": "unscoped-query",
+      "level": "error",
+      "file": "examples/leaky/queries/invoices.sql",
+      "line": 14,
+      "column": null,
+      "at": "examples/leaky/queries/invoices.sql:14",
+      "found": "a subquery reads customers with no condition on customers.tenant_id, so it can return the rows of every tenant",
+      "basis": [
+        {
+          "text": "in a database shared by many tenants every table of tenant data carries a tenant identifier column so that one tenant can be picked out, and queries must never expose the data of more than one tenant",
+          "source": "Multitenant SaaS database tenancy patterns (Microsoft Learn, Azure SQL Database)",
+          "url": "https://learn.microsoft.com/en-us/azure/azure-sql/database/saas-tenancy-app-design-patterns"
+        },
+        {
+          "text": "permissions are checked on every request for the specific object asked for, since checking most requests is not enough",
+          "source": "Authorization Cheat Sheet (OWASP Cheat Sheet Series)",
+          "url": "https://cheatsheetseries.owasp.org/cheatsheets/Authorization_Cheat_Sheet.html"
+        },
+        {
+          "text": "authorization fails when one user can reach the record of another by changing the key that names the record",
+          "source": "CWE-639: Authorization Bypass Through User-Controlled Key (MITRE)",
+          "url": "https://cwe.mitre.org/data/definitions/639.html"
+        }
+      ],
+      "own": "a condition counts only when every row must pass it: a part under OR or NOT, or a condition in the ON of an outer join on the side the join keeps whole, does not count; a table reached through a key from a scoped tenant table is left to unscoped-join; TRUNCATE of a tenant table is reported here too"
+    },
+    {
+      "rule": "unscoped-query",
+      "level": "error",
+      "file": "examples/leaky/queries/invoices.sql",
+      "line": 17,
+      "column": null,
+      "at": "examples/leaky/queries/invoices.sql:17",
+      "found": "the UPDATE changes invoices with no condition on invoices.tenant_id, so it can change the rows of every tenant",
+      "basis": [
+        {
+          "text": "in a database shared by many tenants every table of tenant data carries a tenant identifier column so that one tenant can be picked out, and queries must never expose the data of more than one tenant",
+          "source": "Multitenant SaaS database tenancy patterns (Microsoft Learn, Azure SQL Database)",
+          "url": "https://learn.microsoft.com/en-us/azure/azure-sql/database/saas-tenancy-app-design-patterns"
+        },
+        {
+          "text": "permissions are checked on every request for the specific object asked for, since checking most requests is not enough",
+          "source": "Authorization Cheat Sheet (OWASP Cheat Sheet Series)",
+          "url": "https://cheatsheetseries.owasp.org/cheatsheets/Authorization_Cheat_Sheet.html"
+        },
+        {
+          "text": "authorization fails when one user can reach the record of another by changing the key that names the record",
+          "source": "CWE-639: Authorization Bypass Through User-Controlled Key (MITRE)",
+          "url": "https://cwe.mitre.org/data/definitions/639.html"
+        }
+      ],
+      "own": "a condition counts only when every row must pass it: a part under OR or NOT, or a condition in the ON of an outer join on the side the join keeps whole, does not count; a table reached through a key from a scoped tenant table is left to unscoped-join; TRUNCATE of a tenant table is reported here too"
+    },
+    {
+      "rule": "insert-without-tenant",
+      "level": "error",
+      "file": "examples/leaky/queries/invoices.sql",
+      "line": 20,
+      "column": null,
+      "at": "examples/leaky/queries/invoices.sql:20",
+      "found": "the INSERT into invoice_lines gives no value for tenant_id, so the new row belongs to no tenant",
+      "basis": [
+        {
+          "text": "in a database shared by many tenants every table of tenant data carries a tenant identifier column so that one tenant can be picked out, and queries must never expose the data of more than one tenant",
+          "source": "Multitenant SaaS database tenancy patterns (Microsoft Learn, Azure SQL Database)",
+          "url": "https://learn.microsoft.com/en-us/azure/azure-sql/database/saas-tenancy-app-design-patterns"
+        },
+        {
+          "text": "a tenant identifier from the client only selects a tenant and is checked on the server against the tenant of the signed-in user, and each tenant table in a shared database is listed and guarded",
+          "source": "Multi-Tenant Application Security Cheat Sheet (OWASP Cheat Sheet Series)",
+          "url": "https://cheatsheetseries.owasp.org/cheatsheets/Multi_Tenant_Security_Cheat_Sheet.html"
+        }
+      ],
+      "own": "an INSERT that names no columns is reported, because the tool cannot see which value goes into the tenant column; a tenant column with a DEFAULT in its CREATE TABLE or a later ALTER TABLE may be left out"
+    },
+    {
+      "rule": "allow-without-reason",
+      "level": "error",
+      "file": "examples/leaky/queries/jobs.sql",
+      "line": 8,
+      "column": null,
+      "at": "examples/leaky/queries/jobs.sql:8",
+      "found": "the marker \"tenant-scope: allow\" gives no reason (\"TBD\" says nothing), so it allows nothing; write why the statement may cross tenants after it",
+      "basis": [
+        {
+          "text": "access is denied unless a rule allows it, rather than allowed unless a rule forbids it",
+          "source": "Authorization Cheat Sheet (OWASP Cheat Sheet Series)",
+          "url": "https://cheatsheetseries.owasp.org/cheatsheets/Authorization_Cheat_Sheet.html"
+        },
+        {
+          "text": "permissions are checked on every request for the specific object asked for, since checking most requests is not enough",
+          "source": "Authorization Cheat Sheet (OWASP Cheat Sheet Series)",
+          "url": "https://cheatsheetseries.owasp.org/cheatsheets/Authorization_Cheat_Sheet.html"
+        }
+      ],
+      "own": "the form of the marker, -- tenant-scope: allow followed by a reason, is the tool's own; a reason that is empty or says nothing, such as TBD, allows nothing"
+    },
+    {
+      "rule": "unscoped-query",
+      "level": "error",
+      "file": "examples/leaky/queries/jobs.sql",
+      "line": 9,
+      "column": null,
+      "at": "examples/leaky/queries/jobs.sql:9",
+      "found": "the DELETE deletes from payments with no condition on payments.tenant_id, so it can delete the rows of every tenant",
+      "basis": [
+        {
+          "text": "in a database shared by many tenants every table of tenant data carries a tenant identifier column so that one tenant can be picked out, and queries must never expose the data of more than one tenant",
+          "source": "Multitenant SaaS database tenancy patterns (Microsoft Learn, Azure SQL Database)",
+          "url": "https://learn.microsoft.com/en-us/azure/azure-sql/database/saas-tenancy-app-design-patterns"
+        },
+        {
+          "text": "permissions are checked on every request for the specific object asked for, since checking most requests is not enough",
+          "source": "Authorization Cheat Sheet (OWASP Cheat Sheet Series)",
+          "url": "https://cheatsheetseries.owasp.org/cheatsheets/Authorization_Cheat_Sheet.html"
+        },
+        {
+          "text": "authorization fails when one user can reach the record of another by changing the key that names the record",
+          "source": "CWE-639: Authorization Bypass Through User-Controlled Key (MITRE)",
+          "url": "https://cwe.mitre.org/data/definitions/639.html"
+        }
+      ],
+      "own": "a condition counts only when every row must pass it: a part under OR or NOT, or a condition in the ON of an outer join on the side the join keeps whole, does not count; a table reached through a key from a scoped tenant table is left to unscoped-join; TRUNCATE of a tenant table is reported here too"
+    },
+    {
+      "rule": "unindexed-tenant-column",
+      "level": "warning",
+      "file": "examples/leaky/migrations/001_schema.sql",
+      "line": 22,
+      "column": null,
+      "at": "examples/leaky/migrations/001_schema.sql:22",
+      "found": "the tenant column invoices.tenant_id leads no index, primary key or unique constraint, so every query scoped by tenant reads the whole table",
+      "basis": [
+        {
+          "text": "a multicolumn B-tree index is used best by equality conditions on its leading columns, so the column every query filters on belongs first",
+          "source": "Multicolumn indexes (PostgreSQL documentation)",
+          "url": "https://www.postgresql.org/docs/current/indexes-multicolumn.html"
+        },
+        {
+          "text": "where tenant data is split across databases the tenant identifier is the leading part of the primary key, so the rows of one tenant can be found quickly",
+          "source": "Multitenant SaaS database tenancy patterns (Microsoft Learn, Azure SQL Database)",
+          "url": "https://learn.microsoft.com/en-us/azure/azure-sql/database/saas-tenancy-app-design-patterns"
+        }
+      ],
+      "own": "only the leading column of an index, a primary key or a unique constraint counts, and the rule runs only when the input holds at least one CREATE INDEX, so a set of query files alone is not reported"
+    },
+    {
+      "rule": "unscoped-join",
+      "level": "warning",
+      "file": "examples/leaky/queries/invoices.sql",
+      "line": 7,
+      "column": null,
+      "at": "examples/leaky/queries/invoices.sql:7",
+      "found": "the SELECT reads customers (c) through c.id = i.customer_id from invoices (i) only: no condition ties c.tenant_id to the tenant of invoices (i) or compares it to a value, so a key that points into another tenant brings that tenant's rows in",
+      "basis": [
+        {
+          "text": "in a database shared by many tenants every table of tenant data carries a tenant identifier column so that one tenant can be picked out, and queries must never expose the data of more than one tenant",
+          "source": "Multitenant SaaS database tenancy patterns (Microsoft Learn, Azure SQL Database)",
+          "url": "https://learn.microsoft.com/en-us/azure/azure-sql/database/saas-tenancy-app-design-patterns"
+        },
+        {
+          "text": "every multi-tenant system must keep each tenant from reaching the resources of another, and crossing that line can be an event a SaaS business does not recover from",
+          "source": "Tenant isolation (AWS Well-Architected SaaS Lens)",
+          "url": "https://docs.aws.amazon.com/wellarchitected/latest/saas-lens/tenant-isolation.html"
+        }
+      ],
+      "own": "a warning, not an error, because the joined rows are reached through the rows of a scoped tenant table and come from another tenant only when a key points across tenants; tying the tenant columns together, or a tenant condition on the joined table, clears it"
+    },
+    {
+      "rule": "unused-allow",
+      "level": "notice",
+      "file": "examples/leaky/queries/invoices.sql",
+      "line": 24,
+      "column": null,
+      "at": "examples/leaky/queries/invoices.sql:24",
+      "found": "the marker \"tenant-scope: allow\" allows nothing: its statement has no finding, so the marker can go",
+      "basis": [
+        {
+          "text": "access is denied unless a rule allows it, rather than allowed unless a rule forbids it",
+          "source": "Authorization Cheat Sheet (OWASP Cheat Sheet Series)",
+          "url": "https://cheatsheetseries.owasp.org/cheatsheets/Authorization_Cheat_Sheet.html"
+        }
+      ],
+      "own": "a marker on a statement with no finding is reported, so a stale marker does not stay in place to hide a later finding"
+    }
+  ],
+  "allowed": [
+    {
+      "rule": "unscoped-query",
+      "level": "error",
+      "file": "examples/leaky/queries/jobs.sql",
+      "line": 4,
+      "at": "examples/leaky/queries/jobs.sql:4",
+      "found": "the SELECT reads invoices with no condition on invoices.tenant_id, so it can return the rows of every tenant",
+      "reason": "the dunning job reads the overdue invoices of every tenant, under its own database role",
+      "markerLine": 2
+    }
+  ],
+  "totals": {
+    "findings": 13,
+    "byLevel": {
+      "error": 10,
+      "warning": 2,
+      "notice": 1
+    },
+    "hidden": 0,
+    "notListed": 0,
+    "allowed": 1
+  },
+  "result": {
+    "pass": false,
+    "errors": 10,
+    "byLevel": {
+      "error": 10,
+      "warning": 2,
+      "notice": 1
+    },
+    "text": "FAIL - 10 errors (and 2 warnings, 1 notice)"
+  },
+  "notes": [],
+  "notice": "This report reads the SQL text of the files it was given. It does not connect to a database or run a query, and it does not see SQL built at run time, queries made by an ORM, the body of a view or a function, or row-level security policies (docs/limits.md)."
+}
